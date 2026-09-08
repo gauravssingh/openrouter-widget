@@ -114,7 +114,7 @@ public struct MainPopoverView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Open Settings…") {
-                openSettings()
+                openSettingsWindow()
             }
             .buttonStyle(.borderless)
             .font(.callout)
@@ -242,7 +242,7 @@ public struct MainPopoverView: View {
 
     private var settingsRow: some View {
         Button {
-            openSettings()
+            openSettingsWindow()
         } label: {
             HStack {
                 Text("Settings")
@@ -268,6 +268,19 @@ public struct MainPopoverView: View {
         .buttonStyle(.plain)
         .onHover { settingsRowHovering = $0 }
         .accessibilityLabel("Open settings")
+    }
+
+    /// Opens the Settings window reliably. Accessory (menu-bar-only) apps
+    /// are never automatically active, and SwiftUI's `openSettings` opens
+    /// the window *behind* other apps unless the process is activated first.
+    private func openSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
+        // Belt-and-braces for OS builds where the SwiftUI action is a no-op
+        // in accessory apps: nudge the underlying responder chain.
+        DispatchQueue.main.async {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
     }
 
     @State private var settingsRowHovering = false
