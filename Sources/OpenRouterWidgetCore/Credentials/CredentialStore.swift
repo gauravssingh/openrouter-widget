@@ -5,6 +5,21 @@ public enum CredentialStoreError: Error, Equatable, Sendable {
     case keychain(OSStatus)
 }
 
+extension CredentialStoreError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .keychain(let status) where status == errSecInteractionNotAllowed:
+            return "macOS denied Keychain access — this usually means the app "
+                + "was launched from a remote (SSH) session. "
+                + "Quit it and launch OpenRouter Widget from Finder, Spotlight, "
+                + "or a Terminal window in your local desktop session, then try again."
+        case .keychain(let status):
+            return "macOS Keychain error (status \(status)). "
+                + "Try again, or re-launch the app from Finder."
+        }
+    }
+}
+
 /// Storage abstraction for the OpenRouter API key. Concrete implementations
 /// may use the macOS Keychain, in-memory storage (tests/previews), etc.
 public protocol CredentialStore: Sendable {
