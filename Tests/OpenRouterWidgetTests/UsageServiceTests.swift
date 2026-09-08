@@ -7,10 +7,14 @@ actor FakeAPI: OpenRouterAPI {
     private(set) var keyCalls = 0
     private(set) var creditsCalls = 0
     private(set) var activityCalls = 0
+    private(set) var spendCalls = 0
 
     var keyResult: Result<KeyInfo, Error> = .success(FakeAPI.defaultKey())
     var creditsResult: Result<Credits, Error> = .success(Credits(totalCredits: 100, totalUsage: 30))
     var activityResult: Result<[ActivityItem], Error> = .success([])
+    var spendResult: Result<Double, Error> = .success(42)
+
+    private(set) var spendRanges: [(start: Date, end: Date)] = []
 
     nonisolated static func defaultKey(isManagement: Bool = true) -> KeyInfo {
         KeyInfo(
@@ -39,12 +43,19 @@ actor FakeAPI: OpenRouterAPI {
         return try activityResult.get()
     }
 
+    func getSpendTotal(apiKey: String, from start: Date, to end: Date) throws -> Double {
+        spendCalls += 1
+        spendRanges.append((start, end))
+        return try spendResult.get()
+    }
+
     // Test scripting helpers.
     func setKeyResult(_ result: Result<KeyInfo, Error>) { keyResult = result }
     func setCreditsResult(_ result: Result<Credits, Error>) { creditsResult = result }
     func setActivityResult(_ result: Result<[ActivityItem], Error>) { activityResult = result }
-    func callCounts() -> (key: Int, credits: Int, activity: Int) {
-        (keyCalls, creditsCalls, activityCalls)
+    func setSpendResult(_ result: Result<Double, Error>) { spendResult = result }
+    func callCounts() -> (key: Int, credits: Int, activity: Int, spend: Int) {
+        (keyCalls, creditsCalls, activityCalls, spendCalls)
     }
 }
 
@@ -60,7 +71,7 @@ private func makeItem(_ day: String, model: String, cost: Double) -> ActivityIte
 final class UsageServiceTests: XCTestCase {
     private let apiKey = "sk-or-v1-service-test"
 
-    func testManagementKeyFetchesCreditsAndActivity() async throws {
+    func testManagementKeyFetchesCreditsActivityAndSpend() async throws {
         let api = FakeAPI()
         let items = [makeItem("2025-06-10", model: "a/a", cost: 1)]
         await api.setActivityResult(.success(items))
@@ -72,12 +83,42 @@ final class UsageServiceTests: XCTestCase {
         XCTAssertEqual(calls.key, 1)
         XCTAssertEqual(calls.credits, 1)
         XCTAssertEqual(calls.activity, 1)
+        XCTAssertEqual(calls.spend, 3) // today + week + month
         XCTAssertEqual(snapshot.credits?.remaining ?? 0, 70, accuracy: 0.0001)
         XCTAssertEqual(snapshot.activity, items)
+        XCTAssertEqual(snapshot.accountSpend?.today ?? 0, 42, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.accountSpend?.week ?? 0, 42, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.accountSpend?.month ?? 0, 42, accuracy: 0.0001)
         XCTAssertTrue(snapshot.warnings.isEmpty)
+
+        // The three spend queries cover the local periods; they run
+        // concurrently, so order them before comparing.
+        let ranges = await api.spendRanges
+        XCTAssertEqual(ranges.count, 3)
+        let starts = ranges.map(\.start).sorted()
+        for pair in zip(starts, starts.dropFirst()) {
+            XCTAssertLessThan(pair.0, pair.1)
+        }
+        XCTAssertLessThanOrEqual(starts[0], starts[1])
+        XCTAssertLessThanOrEqual(starts[1], starts[2])
     }
 
-    func testNonManagementKeySkipsCreditsAndActivityAndWarns() async throws {
+    func testSpendFailureDegradesToWarningWithKeyFallback() async throws {
+        let api = FakeAPI()
+        await api.setSpendResult(.failure(OpenRouterAPIError.rateLimited(message: "slow down")))
+
+        let service = UsageService(api: api)
+        let snapshot = try await service.fetchSnapshot(apiKey: apiKey)
+
+        XCTAssertNil(snapshot.accountSpend)
+        guard case .spendUnavailable = snapshot.warnings.first else {
+            return XCTFail("Expected spendUnavailable warning")
+        }
+        // Credits/activity still present.
+        XCTAssertEqual(snapshot.credits?.remaining ?? 0, 70, accuracy: 0.0001)
+    }
+
+    func testNonManagementKeySkipsCreditsActivityAndSpendAndWarns() async throws {
         let api = FakeAPI()
         await api.setKeyResult(.success(FakeAPI.defaultKey(isManagement: false)))
 
@@ -87,6 +128,7 @@ final class UsageServiceTests: XCTestCase {
         let calls = await api.callCounts()
         XCTAssertEqual(calls.credits, 0)
         XCTAssertEqual(calls.activity, 0)
+        XCTAssertEqual(calls.spend, 0)
         XCTAssertNil(snapshot.credits)
         XCTAssertTrue(snapshot.activity.isEmpty)
         XCTAssertEqual(snapshot.warnings, [.managementKeyRequired])

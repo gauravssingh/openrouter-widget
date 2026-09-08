@@ -86,9 +86,6 @@ public struct SpendChartView: View {
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
-        // Anchor the scale at zero so very small daily amounts render as
-        // short-but-visible bars instead of an inflated auto domain.
-        .chartYScale(domain: 0...Double.infinity)
         .frame(height: 72)
         .chartOverlay { proxy in
             GeometryReader { geometry in

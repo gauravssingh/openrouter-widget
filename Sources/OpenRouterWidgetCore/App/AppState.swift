@@ -6,6 +6,11 @@ import os
 /// happen on the main thread.
 @MainActor
 public final class AppState: ObservableObject {
+    /// The production instance. The app delegate triggers `start()` at
+    /// launch — SwiftUI `.task` timing alone proved unreliable for kicking
+    /// off the first refresh.
+    public static let shared = AppState()
+
     // MARK: - Published state
 
     /// True once a key exists in the credential store.
@@ -256,7 +261,7 @@ private extension UsageWarning {
         switch self {
         case .managementKeyRequired:
             return true
-        case .creditsUnavailable, .activityUnavailable:
+        case .creditsUnavailable, .activityUnavailable, .spendUnavailable:
             return false
         }
     }

@@ -9,6 +9,8 @@ public enum UsageWarning: Codable, Equatable, Sendable {
     case creditsUnavailable(String)
     /// Activity data could not be fetched.
     case activityUnavailable(String)
+    /// Exact account spend totals could not be fetched from analytics.
+    case spendUnavailable(String)
 
     public var message: String {
         switch self {
@@ -18,7 +20,27 @@ public enum UsageWarning: Codable, Equatable, Sendable {
             return "Account credits unavailable: \(detail)"
         case .activityUnavailable(let detail):
             return "Spend history unavailable: \(detail)"
+        case .spendUnavailable(let detail):
+            return "Account spend totals unavailable: \(detail)"
         }
+    }
+}
+
+/// Exact account-wide spend (USD) for the local calendar periods shown in
+/// the spend summary rows. Sourced from the analytics API (management key),
+/// so unlike per-key `/key` usage it covers traffic from every API key.
+public struct AccountSpend: Codable, Equatable, Sendable {
+    /// Local calendar day (midnight → now).
+    public let today: Double
+    /// Local Monday → now.
+    public let week: Double
+    /// Local first of month → now.
+    public let month: Double
+
+    public init(today: Double, week: Double, month: Double) {
+        self.today = today
+        self.week = week
+        self.month = month
     }
 }
 
@@ -32,6 +54,8 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
     public let credits: Credits?
     /// Activity rows for the last 30 completed UTC days (management key).
     public let activity: [ActivityItem]
+    /// Exact account-wide local-period spend (analytics, management key).
+    public let accountSpend: AccountSpend?
     public let warnings: [UsageWarning]
 
     public init(
@@ -39,12 +63,14 @@ public struct UsageSnapshot: Codable, Equatable, Sendable {
         key: KeyInfo,
         credits: Credits?,
         activity: [ActivityItem],
+        accountSpend: AccountSpend? = nil,
         warnings: [UsageWarning]
     ) {
         self.capturedAt = capturedAt
         self.key = key
         self.credits = credits
         self.activity = activity
+        self.accountSpend = accountSpend
         self.warnings = warnings
     }
 }

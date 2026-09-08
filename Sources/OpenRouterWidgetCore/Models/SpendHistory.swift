@@ -141,14 +141,14 @@ public enum SpendCalculator {
         return labels
     }
 
-    private static func startOfWeek(containing date: Date, calendar: Calendar) -> Date {
+    static func startOfWeek(containing date: Date, calendar: Calendar) -> Date {
         // With firstWeekday = 2, yearForWeekOfYear/weekOfYear resolve to the
         // Monday-start week containing `date`.
         let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         return calendar.date(from: comps) ?? calendar.startOfDay(for: date)
     }
 
-    private static func startOfMonth(containing date: Date, calendar: Calendar) -> Date {
+    static func startOfMonth(containing date: Date, calendar: Calendar) -> Date {
         let comps = calendar.dateComponents([.year, .month], from: date)
         return calendar.date(from: comps) ?? calendar.startOfDay(for: date)
     }
@@ -176,5 +176,31 @@ public enum SpendCalculator {
         let top = Array(totals.prefix(topModelCount))
         let otherAmount = totals.dropFirst(topModelCount).reduce(0) { $0 + $1.amount }
         return top + [ModelSpend(model: "_other", displayName: "Other", amount: otherAmount)]
+    }
+}
+
+/// Local-calendar period boundaries used for exact account spend queries.
+public enum SpendPeriods {
+    public struct Boundaries: Equatable, Sendable {
+        /// Local midnight of the current day.
+        public let todayStart: Date
+        /// Local Monday of the current week.
+        public let weekStart: Date
+        /// Local first day of the current month.
+        public let monthStart: Date
+    }
+
+    public static func boundaries(
+        now: Date = Date(),
+        timeZone: TimeZone = .current
+    ) -> Boundaries {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        calendar.firstWeekday = 2 // Monday
+        return Boundaries(
+            todayStart: calendar.startOfDay(for: now),
+            weekStart: SpendCalculator.startOfWeek(containing: now, calendar: calendar),
+            monthStart: SpendCalculator.startOfMonth(containing: now, calendar: calendar)
+        )
     }
 }

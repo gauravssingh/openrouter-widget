@@ -60,6 +60,7 @@ main window. It keeps running when the popover closes; quit from the popover.
 | --- | --- | --- |
 | Key usage / limits (`/api/v1/key`) | ✓ | ✓ |
 | Account credits (`/api/v1/credits`) | ✗ (403) | ✓ |
+| Spend rows — today/week/month (`/api/v1/analytics/query`) | ✗ (403) | ✓ |
 | Spend history & top models (`/api/v1/activity`) | ✗ (403) | ✓ |
 
 A normal inference key works — the widget shows key-level usage and clearly
@@ -122,13 +123,13 @@ the test runner cannot access the Keychain.)*
 
 ## Known limitations
 
-- `/api/v1/activity` returns only the **last 30 completed UTC days**, so
-  today's spend comes from the key-usage figures (`usage_daily`) instead —
-  and it is **per-key**, not account-wide. Week/month figures are computed in
-  your local timezone from activity (management key) and lag by up to one day.
+- **Spend rows (today/week/month)** come from the analytics API with a
+  management key — exact, account-wide, local calendar periods. Without a
+  management key they fall back to the configured key's own UTC-period usage.
+- The **30-day chart and top models** come from `/api/v1/activity`, which
+  covers only the last 30 *completed* UTC days — today's bar is not included.
 - Without a management key, the balance shows the **key's remaining spending
-  limit** (not account credits), and week/month figures fall back to the key's
-  own UTC-period usage.
+  limit** (not account credits).
 - No database, sync, or history beyond what OpenRouter's API provides.
 - Launch at Login uses `SMAppService` and requires the packaged `.app`.
 

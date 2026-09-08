@@ -10,6 +10,9 @@ public protocol OpenRouterAPI: Sendable {
     func getCredits(apiKey: String) async throws -> Credits
     /// Activity for the last 30 completed UTC days. Requires a management key.
     func getActivity(apiKey: String) async throws -> [ActivityItem]
+    /// Exact account-wide spend (USD) for an arbitrary time range.
+    /// Requires a management key.
+    func getSpendTotal(apiKey: String, from start: Date, to end: Date) async throws -> Double
 }
 
 /// `URLSession`-backed client. All requests are built centrally, authenticated
@@ -50,13 +53,66 @@ public final class OpenRouterAPIClient: OpenRouterAPI, @unchecked Sendable {
         return response.data
     }
 
+    public func getSpendTotal(apiKey: String, from start: Date, to end: Date) async throws -> Double {
+        AppLog.api.info("Fetching spend total")
+        let body = AnalyticsQueryRequest(
+            metrics: ["total_usage"],
+            timeRange: .init(
+                start: Self.isoTimestamp(start),
+                end: Self.isoTimestamp(end)
+            )
+        )
+        let response: AnalyticsQueryResponse = try await post(path: "analytics/query", apiKey: apiKey, body: body)
+        let total = response.data.data.reduce(0) { $0 + ($1.totalUsage?.value ?? 0) }
+        AppLog.api.info("Spend total request completed")
+        return total
+    }
+
+    private static func isoTimestamp(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: date)
+    }
+
     // MARK: - Internals
 
-    private func get<Response: Decodable>(
+    private func get<Response: Decodable>(path: String, apiKey: String) async throws -> Response {
+        let requestData = try await performRequest(path: path, apiKey: apiKey, payload: nil, method: "GET")
+        do {
+            return try decoder.decode(Response.self, from: requestData)
+        } catch {
+            AppLog.api.error("Decoding failed: \(String(describing: error))")
+            throw OpenRouterAPIError.decodingFailed(String(describing: error))
+        }
+    }
+
+    private func post<Response: Decodable>(
         path: String,
         apiKey: String,
-        queryItems: [URLQueryItem] = []
+        body: some Encodable
     ) async throws -> Response {
+        let payload: Data
+        do {
+            payload = try JSONEncoder().encode(body)
+        } catch {
+            throw OpenRouterAPIError.invalidResponse
+        }
+        let requestData = try await performRequest(path: path, apiKey: apiKey, payload: payload, method: "POST")
+        do {
+            return try decoder.decode(Response.self, from: requestData)
+        } catch {
+            AppLog.api.error("Decoding failed: \(String(describing: error))")
+            throw OpenRouterAPIError.decodingFailed(String(describing: error))
+        }
+    }
+
+    /// Shared request/response plumbing for GET and POST.
+    private func performRequest(
+        path: String,
+        apiKey: String,
+        payload: Data?,
+        method: String
+    ) async throws -> Data {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else { throw OpenRouterAPIError.missingAPIKey }
 
@@ -64,15 +120,16 @@ public final class OpenRouterAPIClient: OpenRouterAPI, @unchecked Sendable {
             url: baseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
         )
-        if !queryItems.isEmpty {
-            components?.queryItems = queryItems
-        }
         guard let url = components?.url else { throw OpenRouterAPIError.invalidResponse }
 
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         request.timeoutInterval = 30
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        if let payload {
+            request.httpBody = payload
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
@@ -94,12 +151,7 @@ public final class OpenRouterAPIClient: OpenRouterAPI, @unchecked Sendable {
             throw errorBody(for: http, data: data)
         }
 
-        do {
-            return try decoder.decode(Response.self, from: data)
-        } catch {
-            AppLog.api.error("Decoding failed: \(String(describing: error))")
-            throw OpenRouterAPIError.decodingFailed(String(describing: error))
-        }
+        return data
     }
 
     private func errorBody(for http: HTTPURLResponse, data: Data) -> OpenRouterAPIError {

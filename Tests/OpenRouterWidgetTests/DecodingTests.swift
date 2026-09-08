@@ -80,4 +80,18 @@ final class DecodingTests: XCTestCase {
         let items = try decoder.decode(ActivityResponse.self, from: fixtureData("activity-empty")).data
         XCTAssertTrue(items.isEmpty)
     }
+
+    func testAnalyticsSpendDecoding() throws {
+        let response = try decoder.decode(AnalyticsQueryResponse.self, from: fixtureData("analytics"))
+        XCTAssertEqual(response.data.data.count, 1)
+        XCTAssertEqual(response.data.data.first?.totalUsage?.value ?? 0, 5.88, accuracy: 0.0001)
+        XCTAssertEqual(response.data.metadata?.truncated, false)
+    }
+
+    func testAnalyticsSpendDecodingWithStringNumbers() throws {
+        // The analytics API may return counts as strings — parse defensively.
+        let response = try decoder.decode(AnalyticsQueryResponse.self, from: fixtureData("analytics-strings"))
+        let total = response.data.data.reduce(0) { $0 + ($1.totalUsage?.value ?? 0) }
+        XCTAssertEqual(total, 7.00, accuracy: 0.0001)
+    }
 }

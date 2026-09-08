@@ -68,24 +68,22 @@ endpoints; a 429 is handled generically.
    `limit_remaining` clearly labeled "Key limit remaining" and states that
    account credits require a management key.
 
-2. **"Today" spend** — from `/key` `usage_daily + byok_usage_daily`. This is the
-   only source that includes the current day (activity covers only *completed*
-   UTC days, so an activity-based "today" would read $0.00 all day).
-   Caveat: it is the usage of the *configured key* (not account-wide), for the
-   current **UTC** day.
+2. **"Today" / "This week" / "This month"** — exact account-wide spend from
+   `POST /api/v1/analytics/query` (management key) with
+   `metrics: ["total_usage"]` and three precise time ranges: local
+   midnight -> now, local Monday -> now, local first-of-month -> now.
+   This covers traffic made through *all* API keys and includes the current
+   day — unlike `/key` usage (per-key, so a dedicated management key shows
+   $0.00) and activity (completed UTC days only). Counts may arrive as JSON
+   strings; rows are parsed defensively and summed. When analytics is
+   unavailable (non-management key or failure) the widget falls back to
+   `/key` `usage_daily / usage_weekly / usage_monthly` labeled
+   "key usage · UTC periods" so the semantics are never mixed silently.
 
-3. **"This week" / "This month"** — computed by `SpendCalculator` from activity
-   data in the user's **local timezone** (week = **Monday–Sunday** local, same
-   weekday convention OpenRouter itself uses; month = calendar month local).
-   Caveat: activity excludes today and days older than 30, so these values can
-   lag today's spend by one day and exclude spend before the 30-day window.
-   If the key has no management permissions (no activity), the widget falls
-   back to `/key` `usage_weekly / usage_monthly` and labels the rows
-   "key usage · UTC periods" so the two semantics are never mixed silently.
-
-4. **30-day chart / "Top models"** — from activity data (`usage +
-   byok_usage_inference`), UTC-day buckets displayed as calendar days, local
-   30-day window.
+3. **30-day chart / "Top models"** — from activity data (`usage +
+   `byok_usage_inference`), UTC-day buckets displayed as calendar days, local
+   30-day window. Activity covers only the last 30 *completed* UTC days, so
+   today is absent from the chart by design.
 
 These caveats are surfaced in the UI captions and the README "Known
 limitations" section.

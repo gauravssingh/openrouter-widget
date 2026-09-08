@@ -1,0 +1,18 @@
+{
+  "data": {
+    "data": [
+      {
+        "total_usage": "5.88"
+      },
+      {
+        "total_usage": "1.12",
+        "date__day": "2025-06-11T00:00:00.000Z"
+      }
+    ],
+    "metadata": {
+      "query_time_ms": 12,
+      "row_count": 2,
+      "truncated": false
+    }
+  }
+}

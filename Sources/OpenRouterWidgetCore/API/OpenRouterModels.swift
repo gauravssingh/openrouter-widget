@@ -111,6 +111,77 @@ public struct Credits: Codable, Equatable, Sendable {
     }
 }
 
+// MARK: - /api/v1/analytics/query
+
+/// Request body for `POST /api/v1/analytics/query` (management key).
+public struct AnalyticsQueryRequest: Codable, Equatable, Sendable {
+    public let metrics: [String]
+    public let timeRange: TimeRange
+
+    public struct TimeRange: Codable, Equatable, Sendable {
+        /// ISO-8601 UTC timestamp with seconds.
+        public let start: String
+        /// ISO-8601 UTC timestamp with seconds.
+        public let end: String
+    }
+
+    public init(metrics: [String], timeRange: TimeRange) {
+        self.metrics = metrics
+        self.timeRange = timeRange
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case metrics
+        case timeRange = "time_range"
+    }
+}
+
+/// `POST /api/v1/analytics/query` response. Rows are loosely typed on the
+/// server (counts may arrive as strings); `totalUsage` parses defensively.
+public struct AnalyticsQueryResponse: Codable, Equatable, Sendable {
+    public let data: Body
+
+    public struct Body: Codable, Equatable, Sendable {
+        public let data: [Row]
+        public let metadata: Metadata?
+    }
+
+    public struct Row: Codable, Equatable, Sendable {
+        /// Total account spend in USD for the queried range.
+        public let totalUsage: FlexibleNumber?
+    }
+
+    public struct Metadata: Codable, Equatable, Sendable {
+        public let rowCount: Int?
+        public let truncated: Bool?
+    }
+}
+
+/// A JSON number that may arrive as a number or a numeric string.
+public struct FlexibleNumber: Codable, Equatable, Sendable {
+    public let value: Double?
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = Double(string)
+        } else {
+            value = nil
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
+
+    public init(_ value: Double) {
+        self.value = value
+    }
+}
+
 // MARK: - /api/v1/activity
 
 /// One activity row: spend for one (UTC day, model, endpoint) combination.

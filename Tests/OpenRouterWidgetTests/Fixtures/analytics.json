@@ -1,0 +1,14 @@
+{
+  "data": {
+    "data": [
+      {
+        "total_usage": 5.88
+      }
+    ],
+    "metadata": {
+      "query_time_ms": 17,
+      "row_count": 1,
+      "truncated": false
+    }
+  }
+}

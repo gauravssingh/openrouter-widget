@@ -5,7 +5,7 @@ import SwiftUI
 @main
 struct OpenRouterWidgetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var appState = AppState()
+    @StateObject private var appState = AppState.shared
 
     var body: some Scene {
         MenuBarExtra {
@@ -29,5 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu-bar utility: no Dock icon, no main window; keep running when
         // the popover closes (termination only via Quit).
         NSApp.setActivationPolicy(.accessory)
+
+        // Guaranteed bootstrap: load cached data, run the first refresh, and
+        // arm the auto-refresh timer at launch. `start()` is idempotent, so
+        // the SwiftUI `.task` calls are harmless duplicates.
+        Task { @MainActor in
+            AppState.shared.start()
+        }
     }
 }

@@ -84,17 +84,24 @@ public struct MainPopoverView: View {
 
     private func summaryRows(_ snapshot: UsageSnapshot) -> some View {
         let key = snapshot.key
+        // Exact account-wide local-period spend from analytics when the key
+        // provides it; otherwise the honest per-key fallbacks with a caption.
+        if let account = snapshot.accountSpend {
+            return AnyView(
+                UsageSummaryView(today: account.today, week: account.week, month: account.month, footnote: nil)
+            )
+        }
+
         let breakdown = appState.spendBreakdown
-        // Week/month come from local-timezone activity computation when a
-        // management key provides it; otherwise fall back to the key's own
-        // UTC-period figures, clearly labeled.
         let footnote: String? = breakdown != nil ? nil : "Key usage · UTC periods"
 
-        return UsageSummaryView(
-            today: key.totalDailyUsage,
-            week: breakdown?.week ?? key.totalWeeklyUsage,
-            month: breakdown?.month ?? key.totalMonthlyUsage,
-            footnote: footnote
+        return AnyView(
+            UsageSummaryView(
+                today: key.totalDailyUsage,
+                week: breakdown?.week ?? key.totalWeeklyUsage,
+                month: breakdown?.month ?? key.totalMonthlyUsage,
+                footnote: footnote
+            )
         )
     }
 
@@ -246,13 +253,15 @@ public struct MainPopoverView: View {
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, -8)
             .padding(.vertical, 5)
             .contentShape(Rectangle())
             .background {
                 if settingsRowHovering {
                     RoundedRectangle(cornerRadius: 5)
                         .fill(Color.primary.opacity(0.06))
+                        // Extend the hover highlight past the text margins
+                        // without moving the text itself.
+                        .padding(.horizontal, -8)
                 }
             }
         }
@@ -270,7 +279,7 @@ public struct MainPopoverView: View {
         return snapshot.warnings.first { warning in
             switch warning {
             case .managementKeyRequired: return false
-            case .creditsUnavailable, .activityUnavailable: return true
+            case .creditsUnavailable, .activityUnavailable, .spendUnavailable: return true
             }
         }
     }
