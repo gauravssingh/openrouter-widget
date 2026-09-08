@@ -34,6 +34,7 @@ public struct UsageSummaryView: View {
                     Spacer()
                     Text(CurrencyFormatter.string(from: row.value))
                         .monospacedDigit()
+                        .fontWeight(.medium)
                         .foregroundStyle(.primary)
                 }
                 .font(.callout)

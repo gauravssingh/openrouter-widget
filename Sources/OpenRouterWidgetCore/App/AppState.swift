@@ -221,10 +221,10 @@ public final class AppState: ObservableObject {
         return "OR \(CurrencyFormatter.compact(from: balance.amount))"
     }
 
-    /// "Updated 2 min ago" for the footer.
+    /// "Updated just now" / "Updated 2 min ago" for the footer.
     public var updatedAgoText: String? {
         guard let snapshot else { return nil }
-        return "Updated \(DateHelpers.relativeDescription(from: snapshot.capturedAt))"
+        return "Updated \(DateHelpers.humanRelative(from: snapshot.capturedAt))"
     }
 
     public var managementPermissionsWarning: UsageWarning? {

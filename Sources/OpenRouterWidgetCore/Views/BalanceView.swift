@@ -25,7 +25,7 @@ public struct BalanceView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(CurrencyFormatter.string(from: amount))
-                .font(.system(.title, design: .rounded, weight: .semibold))
+                .font(.system(.largeTitle, design: .rounded, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)

@@ -20,12 +20,6 @@ public enum DateHelpers {
         return formatter
     }()
 
-    private static let relative: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter
-    }()
-
     /// Parses a `YYYY-MM-DD` string as the start of that day in UTC.
     public static func parseUTCDay(_ string: String) -> Date? {
         utcDayFormatter.date(from: String(string.prefix(10)))
@@ -43,8 +37,20 @@ public enum DateHelpers {
         ISO8601DateFormatter().date(from: string)
     }
 
-    /// `"2 min ago"`, `"3 hr ago"`, …
-    public static func relativeDescription(from date: Date, to now: Date = Date()) -> String {
-        relative.localizedString(for: date, relativeTo: now)
+    /// "just now", "2 min ago", "1 hr ago", "3 days ago" — the concise
+    /// human-readable states used by the popover footer.
+    public static func humanRelative(from date: Date, to now: Date = Date()) -> String {
+        let seconds = max(0, now.timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        let minutes = Int(seconds / 60)
+        if minutes < 60 {
+            return minutes == 1 ? "1 min ago" : "\(minutes) min ago"
+        }
+        let hours = minutes / 60
+        if hours < 24 {
+            return hours == 1 ? "1 hr ago" : "\(hours) hr ago"
+        }
+        let days = hours / 24
+        return days == 1 ? "1 day ago" : "\(days) days ago"
     }
 }

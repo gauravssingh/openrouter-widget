@@ -23,7 +23,7 @@ public struct SpendChartView: View {
                 // The trailing value shows the hovered day while the pointer
                 // rests on the chart, otherwise the 30-day total.
                 Text(hoveredValue ?? CurrencyFormatter.string(from: total))
-                    .font(.subheadline.monospacedDigit())
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
                     .foregroundStyle(hoveredDay == nil ? .secondary : .primary)
                     .animation(.default, value: hoveredDay)
             }
@@ -61,7 +61,7 @@ public struct SpendChartView: View {
                     .font(.title3)
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
-                Text("No spend in the last 30 days")
+                Text("No spending activity")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -86,6 +86,9 @@ public struct SpendChartView: View {
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
+        // Anchor the scale at zero so very small daily amounts render as
+        // short-but-visible bars instead of an inflated auto domain.
+        .chartYScale(domain: 0...Double.infinity)
         .frame(height: 72)
         .chartOverlay { proxy in
             GeometryReader { geometry in

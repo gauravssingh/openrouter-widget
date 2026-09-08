@@ -46,8 +46,7 @@ public struct MainPopoverView: View {
                 managementRequired: appState.managementPermissionsWarning != nil
                     && appState.balance?.isAccountCredits != true
             )
-
-            Divider()
+            .padding(.top, 2)
 
             summaryRows(snapshot)
 
@@ -55,11 +54,10 @@ public struct MainPopoverView: View {
 
             if let breakdown = appState.spendBreakdown {
                 SpendChartView(series: breakdown.dailySeries, total: breakdown.last30Days)
-                    .padding(.vertical, 2)
 
                 ModelSpendView(models: breakdown.topModels)
             } else {
-                activityUnavailableNote(snapshot)
+                activityUnavailableNote
             }
 
             Spacer(minLength: 4)
@@ -67,31 +65,12 @@ public struct MainPopoverView: View {
             Divider()
 
             footer
-            
-            HStack {
-                Button {
-                    openSettings()
-                } label: {
-                    Text("Settings…")
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Open settings")
-
-                Spacer()
-
-                Button("Quit OpenRouter Widget") {
-                    NSApp.terminate(nil)
-                }
-                .buttonStyle(.borderless)
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
         }
         .padding(16)
     }
 
     /// Secondary context under the hero number, e.g.
-    /// "Used $79.41 of $100.50" — keeps the semantics of the balance
+    /// "used $79.41 of $100.50" — keeps the semantics of the balance
     /// explicit and trustworthy.
     private func balanceDetail(_ snapshot: UsageSnapshot) -> String? {
         if let credits = snapshot.credits {
@@ -109,12 +88,7 @@ public struct MainPopoverView: View {
         // Week/month come from local-timezone activity computation when a
         // management key provides it; otherwise fall back to the key's own
         // UTC-period figures, clearly labeled.
-        let footnote: String? = {
-            if breakdown != nil {
-                return nil
-            }
-            return "Key usage · UTC periods"
-        }()
+        let footnote: String? = breakdown != nil ? nil : "Key usage · UTC periods"
 
         return UsageSummaryView(
             today: key.totalDailyUsage,
@@ -124,18 +98,22 @@ public struct MainPopoverView: View {
         )
     }
 
-    private func activityUnavailableNote(_ snapshot: UsageSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(
-                "Spend history and top models require a management key.",
-                systemImage: "lock"
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+    private var activityUnavailableNote: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Account data unavailable")
+                .font(.subheadline.weight(.semibold))
+            Text("Your OpenRouter key does not have the required permissions. A management key is needed for spend history and top models.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Open Settings…") {
+                openSettings()
+            }
+            .buttonStyle(.borderless)
+            .font(.callout)
+            .accessibilityLabel("Open settings")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Loading / error
@@ -177,60 +155,160 @@ public struct MainPopoverView: View {
     // MARK: - Footer
 
     private var footer: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { _ in
-            VStack(alignment: .leading, spacing: 8) {
-                if let warning = snapshotWarning {
-                    Label(warning.message, systemImage: "exclamationmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            if let warning = snapshotWarning {
+                Label(warning.message, systemImage: "exclamationmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
+            statusRow
+
+            settingsRow
+
+            Divider()
+
+            Button("Quit OpenRouter Widget") {
+                NSApp.terminate(nil)
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Quit OpenRouter Widget")
+        }
+    }
+
+    private var statusRow: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .center) {
-                    if let updated = appState.updatedAgoText {
-                        HStack(spacing: 4) {
-                            Text(updated)
-                            if appState.lastRefreshError != nil {
-                                Text("·")
-                                    .foregroundStyle(.tertiary)
-                                Text("Could not refresh")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                    Text(statusText)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
-                        .help(appState.lastRefreshError ?? updated)
-                    }
+                        .help(statusTooltip)
                     Spacer()
-                    Button {
-                        Task { await appState.refresh() }
-                    } label: {
-                        if appState.isRefreshing {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
+                    refreshButton
+                }
+
+                if let error = appState.lastRefreshError, appState.snapshot != nil {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        Text("Unable to refresh")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Retry") {
+                            Task { await appState.refresh() }
                         }
+                        .buttonStyle(.borderless)
+                        .font(.caption.weight(.medium))
+                        .accessibilityLabel("Retry refresh")
                     }
-                    .buttonStyle(.borderless)
-                    .keyboardShortcut("r")
-                    .disabled(appState.isRefreshing)
-                    .accessibilityLabel("Refresh now")
-                    .help("Refresh now (⌘R)")
+                    .help(error)
                 }
             }
         }
     }
 
+    private var statusText: String {
+        if appState.isRefreshing { return "Refreshing…" }
+        if let updated = appState.updatedAgoText { return updated }
+        return "Never updated"
+    }
+
+    private var statusTooltip: String {
+        if let error = appState.lastRefreshError, appState.snapshot != nil {
+            return error
+        }
+        return statusText
+    }
+
+    private var refreshButton: some View {
+        RefreshButton(isRefreshing: appState.isRefreshing) {
+            Task { await appState.refresh() }
+        }
+    }
+
+    private var settingsRow: some View {
+        Button {
+            openSettings()
+        } label: {
+            HStack {
+                Text("Settings")
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, -8)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+            .background {
+                if settingsRowHovering {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.primary.opacity(0.06))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { settingsRowHovering = $0 }
+        .accessibilityLabel("Open settings")
+    }
+
+    @State private var settingsRowHovering = false
+
     private var snapshotWarning: UsageWarning? {
         guard let snapshot = appState.snapshot else { return nil }
         // Surface only actionable data warnings, not management-required
-        // (already shown in the balance area).
+        // (already shown in the content area).
         return snapshot.warnings.first { warning in
             switch warning {
             case .managementKeyRequired: return false
             case .creditsUnavailable, .activityUnavailable: return true
             }
         }
+    }
+}
+
+/// Subtle circular refresh control with a clear hover state and a spinner
+/// while a refresh is in flight. Its footprint never changes, so the
+/// popover layout stays stable.
+private struct RefreshButton: View {
+    let isRefreshing: Bool
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.callout.weight(.medium))
+                }
+            }
+            .frame(width: 24, height: 24)
+            .background {
+                if hovering {
+                    Circle().fill(Color.primary.opacity(0.08))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isRefreshing)
+        .keyboardShortcut("r")
+        .accessibilityLabel("Refresh usage")
+        .help("Refresh usage (⌘R)")
+        .onHover { hovering = $0 }
     }
 }
