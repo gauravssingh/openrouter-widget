@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+build/
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Packaging artifacts
+*.app
+*.dmg
+
+# Local secrets / configuration
+.env
+*.env
+secrets.*
+local.*
+
+# Editors
+.vscode/
+.idea/
