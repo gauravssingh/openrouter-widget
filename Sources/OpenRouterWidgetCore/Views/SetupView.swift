@@ -54,7 +54,7 @@ public struct SetupView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .frame(width: 320)
+        .frame(width: 340)
         .onAppear { keyFieldFocused = true }
     }
 

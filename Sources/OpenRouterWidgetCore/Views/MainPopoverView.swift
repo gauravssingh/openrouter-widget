@@ -41,6 +41,7 @@ public struct MainPopoverView: View {
             BalanceView(
                 amount: appState.balance?.amount ?? 0,
                 label: appState.balance?.label ?? "Available credits",
+                detail: balanceDetail(snapshot),
                 isAccountCredits: appState.balance?.isAccountCredits ?? false,
                 managementRequired: appState.managementPermissionsWarning != nil
                     && appState.balance?.isAccountCredits != true
@@ -71,12 +72,7 @@ public struct MainPopoverView: View {
                 Button {
                     openSettings()
                 } label: {
-                    HStack(spacing: 2) {
-                        Text("Settings")
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Text("Settings…")
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Open settings")
@@ -87,10 +83,24 @@ public struct MainPopoverView: View {
                     NSApp.terminate(nil)
                 }
                 .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
             }
+            .font(.callout)
+            .foregroundStyle(.secondary)
         }
         .padding(16)
+    }
+
+    /// Secondary context under the hero number, e.g.
+    /// "Used $79.41 of $100.50" — keeps the semantics of the balance
+    /// explicit and trustworthy.
+    private func balanceDetail(_ snapshot: UsageSnapshot) -> String? {
+        if let credits = snapshot.credits {
+            return "used \(CurrencyFormatter.string(from: credits.totalUsage)) of \(CurrencyFormatter.string(from: credits.totalCredits))"
+        }
+        if let reset = snapshot.key.limitReset, !reset.isEmpty, snapshot.key.limit != nil {
+            return "resets \(reset)"
+        }
+        return nil
     }
 
     private func summaryRows(_ snapshot: UsageSnapshot) -> some View {
@@ -181,13 +191,16 @@ public struct MainPopoverView: View {
                         HStack(spacing: 4) {
                             Text(updated)
                             if appState.lastRefreshError != nil {
-                                Text("· Could not refresh")
+                                Text("·")
+                                    .foregroundStyle(.tertiary)
+                                Text("Could not refresh")
                                     .foregroundStyle(.secondary)
                             }
                         }
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
+                        .help(appState.lastRefreshError ?? updated)
                     }
                     Spacer()
                     Button {

@@ -14,7 +14,7 @@ public struct SettingsView: View {
 
     public var body: some View {
         Form {
-            Section("OpenRouter") {
+            Section {
                 connectionRow
                 if showingReplaceKey {
                     replaceKeyRow
@@ -22,9 +22,13 @@ public struct SettingsView: View {
                     Button("Replace Key…") { showingReplaceKey = true }
                 }
                 testConnectionRow
+            } header: {
+                Text("OpenRouter")
+            } footer: {
+                Text("The key is stored only in the macOS Keychain and is sent solely to openrouter.ai.")
             }
 
-            Section("Refresh") {
+            Section {
                 Picker("Refresh interval", selection: intervalBinding) {
                     Text("1 minute").tag(1)
                     Text("5 minutes").tag(5)
@@ -33,17 +37,25 @@ public struct SettingsView: View {
                     Text("1 hour").tag(60)
                     Text("Manual only").tag(0)
                 }
+            } header: {
+                Text("Refresh")
+            } footer: {
+                Text("5 minutes is plenty for most accounts; more frequent polling rarely shows anything new.")
             }
 
             Section("Menu Bar") {
                 Toggle("Show balance in menu bar", isOn: menuBarBalanceBinding)
             }
 
-            Section("Launch") {
+            Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
                 Text(launchStatus)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } header: {
+                Text("Launch")
+            } footer: {
+                Text("Uses SMAppService. Requires the packaged app — copy OpenRouterWidget.app out of .build (e.g. to /Applications) first.")
             }
 
             Section("About") {
@@ -52,7 +64,7 @@ public struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 480)
+        .frame(minWidth: 460, minHeight: 420)
     }
 
     // MARK: - Rows

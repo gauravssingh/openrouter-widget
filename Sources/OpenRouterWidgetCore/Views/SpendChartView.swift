@@ -2,10 +2,12 @@ import Charts
 import SwiftUI
 
 /// Minimal native Swift Charts bar chart answering "how much have I been
-/// spending recently?" over the last 30 days.
+/// spending recently?" over the last 30 days. Hover reveals the day's value.
 public struct SpendChartView: View {
     private let series: [SpendDay]
     private let total: Double
+
+    @State private var hoveredDay: SpendDay?
 
     public init(series: [SpendDay], total: Double) {
         self.series = series
@@ -18,9 +20,12 @@ public struct SpendChartView: View {
                 Text("Spend — Last 30 Days")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text(CurrencyFormatter.string(from: total))
+                // The trailing value shows the hovered day while the pointer
+                // rests on the chart, otherwise the 30-day total.
+                Text(hoveredValue ?? CurrencyFormatter.string(from: total))
                     .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(hoveredDay == nil ? .secondary : .primary)
+                    .animation(.default, value: hoveredDay)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(
@@ -32,7 +37,20 @@ public struct SpendChartView: View {
             } else {
                 chart
             }
+
+            if let hoveredDay {
+                Text(Self.dayLabel(for: hoveredDay.date))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .transition(.opacity)
+            }
         }
+    }
+
+    private var hoveredValue: String? {
+        guard let hoveredDay else { return nil }
+        return CurrencyFormatter.string(from: hoveredDay.amount)
     }
 
     private var emptyState: some View {
@@ -61,22 +79,53 @@ public struct SpendChartView: View {
                     y: .value("Spend", day.amount)
                 )
                 .cornerRadius(2)
-                .foregroundStyle(Color.accentColor.opacity(0.85))
-                .annotation(position: .top) {
-                    // Detail tooltip: show the value only for the peak day
-                    // to keep the chart quiet but informative.
-                    if day.amount == series.map(\.amount).max(), day.amount > 0 {
-                        Text(CurrencyFormatter.string(from: day.amount))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .offset(y: -4)
-                    }
-                }
+                .foregroundStyle(
+                    Color.accentColor.opacity(hoveredDay?.id == day.id ? 1.0 : 0.85)
+                )
             }
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .frame(height: 72)
-        .accessibilityLabel("30-day spend bar chart, highest day \(CurrencyFormatter.string(from: series.map(\.amount).max() ?? 0))")
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            let plotFrame = geometry[proxy.plotAreaFrame]
+                            guard location.x >= plotFrame.minX,
+                                  location.x <= plotFrame.maxX else {
+                                hoveredDay = nil
+                                return
+                            }
+                            if let date: Date = proxy.value(
+                                atX: location.x - plotFrame.minX,
+                                as: Date.self
+                            ) {
+                                hoveredDay = series.first {
+                                    Calendar.current.isDate($0.date, inSameDayAs: date)
+                                }
+                            } else {
+                                hoveredDay = nil
+                            }
+                        case .ended:
+                            hoveredDay = nil
+                        }
+                    }
+            }
+        }
+        .accessibilityLabel(
+            "30-day spend bar chart, total \(CurrencyFormatter.string(from: total)), highest day \(CurrencyFormatter.string(from: series.map(\.amount).max() ?? 0))"
+        )
+    }
+
+    private static func dayLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
