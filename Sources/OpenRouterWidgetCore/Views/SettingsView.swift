@@ -60,7 +60,12 @@ public struct SettingsView: View {
 
             Section("About") {
                 LabeledContent("Version", value: appVersion)
-                LabeledContent("Project", value: "openrouter-widget")
+                LabeledContent("Project") {
+                    Link(
+                        "gauravssingh/openrouter-widget",
+                        destination: URL(string: "https://github.com/gauravssingh/openrouter-widget")!
+                    )
+                }
             }
         }
         .formStyle(.grouped)

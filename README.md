@@ -1,141 +1,133 @@
-# OpenRouter Widget
+<div align="center">
 
-A lightweight, native macOS menu-bar utility for OpenRouter: see your available
-credits, today/week/month spend, a 30-day spend chart, and top models — all at
-a glance, straight from the menu bar.
+# ⚡ OpenRouter Widget
 
-> Screenshots: TODO
+**A native macOS menu-bar utility for your OpenRouter credits and spend.**
 
-## What it shows
+Balance, today / week / month spend, a 30-day chart, and top models — all one glance away, straight from the menu bar.
 
-- **Available credits** (account balance) — the hero number, also optionally
-  shown in the menu bar as `OR $42.18`
-- **Spend for today / this week / this month**
-- **30-day spend chart** (native Swift Charts)
-- **Top models** by spend over the last 30 days
-- **Last refresh status** — “Updated 2 min ago” (with a manual ↻ refresh;
-  auto-refresh every 5 minutes by default, configurable)
+![Swift](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![SwiftUI](https://img.shields.io/badge/UI-SwiftUI%20·%20MenuBarExtra-1D9BF0)
+![SwiftPM](https://img.shields.io/badge/package-SwiftPM-F05138?logo=swift&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-45%20passing-2EA44F)
+![Keychain](https://img.shields.io/badge/secrets-Keychain%20only-8B5CF6)
+![License](https://img.shields.io/badge/license-MIT-97CA50)
 
-## Requirements
+</div>
 
-- macOS 14 Sonoma or newer
-- Xcode Command Line Tools (`swift` 5.9+)
+---
 
-## Build & test
+```text
+┌────────────────────────────────────┐
+│ $21.09                             │
+│ Available credits                  │
+│                                    │
+│ Today                    $0.00     │
+│ This week                $1.25     │
+│ This month               $5.53     │
+│ ────────────────────────────────── │
+│ Spend — Last 30 Days        $5.88  │
+│         ▁ ▃▁  ▂█▂▁   ▁ ▁           │
+│ Top models                         │
+│ Gemini 3.8 Flash          $2.82    │
+│ GLM 5.3                   $0.45    │
+│ ────────────────────────────────── │
+│ Updated just now                 ↻ │
+│ Settings                         › │
+│ Quit OpenRouter Widget             │
+└────────────────────────────────────┘
+```
+
+*No Dock icon. No web dashboard. No Electron. Just a quiet menu-bar window that answers "how's my OpenRouter account doing?" in about two seconds.*
+
+## ✨ Features
+
+- **💳 Available credits** — the hero number, optionally mirrored in the menu bar as `OR $42.18`
+- **📅 Spend rows** — today / this week / this month, exact account-wide values in your local calendar
+- **📈 30-day chart** — native Swift Charts, hover any bar for that day's date and amount
+- **🏆 Top models** — spend by model over the last 30 days, with long names truncated gracefully
+- **🔄 Smart refresh** — manual (⌘R) or automatic (1 min – 1 hour, default 5), with duplicate-refresh protection
+- **💾 Resilient cache** — failed refreshes never wipe good data; you keep seeing the last successful numbers with `Updated 4 min ago · Unable to refresh`
+- **🔐 Keychain-only credentials** — your API key never touches UserDefaults, files, or Git
+- **🚀 Launch at Login** — via the modern `SMAppService` API
+
+## 📦 Install
+
+**Requirements:** macOS 14 Sonoma or newer · Xcode Command Line Tools
 
 ```bash
-swift build
-swift test
+git clone https://github.com/gauravssingh/openrouter-widget.git
+cd openrouter-widget
+
+swift build          # build
+swift test           # run the 45-test suite (no network or account needed)
+
+scripts/package-app.sh                          # assemble the .app bundle
+cp -R .build/OpenRouterWidget.app /Applications/ # install
+open /Applications/OpenRouterWidget.app          # launch
 ```
 
-## Run
+First launch: click the menu-bar item, paste an OpenRouter API key, done.
 
-Directly (development):
+> Launch the app via Finder/Spotlight/`open` — never from an SSH session, which macOS bars from Keychain access.
 
-```bash
-swift run
-```
+## 🔑 API key & permissions
 
-Or package a proper `.app` bundle (recommended for daily use — also enables
-Launch at Login):
+Create a key at <https://openrouter.ai/settings/keys>. A **management key** unlocks everything:
 
-```bash
-scripts/package-app.sh
-open .build/OpenRouterWidget.app
-```
+| Data | Source | Inference key | Management key |
+| :--- | :--- | :---: | :---: |
+| Key usage & limits | `GET /api/v1/key` | ✓ | ✓ |
+| Account credits | `GET /api/v1/credits` | ✗ 403 | ✓ |
+| Today / week / month spend | `POST /api/v1/analytics/query` | ✗ 403 | ✓ |
+| 30-day chart & top models | `GET /api/v1/activity` | ✗ 403 | ✓ |
 
-The app runs as a menu-bar-only utility (`MenuBarExtra`): no Dock icon, no
-main window. It keeps running when the popover closes; quit from the popover.
+With a plain inference key the widget still works — it shows key-level usage and clearly labels what needs a management key. ⚠️ Management keys can spend credits and manage your account: create a dedicated one for the widget and treat it as a secret.
 
-## API key setup
+## 🏗️ Architecture
 
-1. Click the menu-bar item → paste an OpenRouter API key → **Connect**.
-2. The key is stored **only in the macOS Keychain** (`dev.gsingh.openrouter-widget`)
-   — never in UserDefaults, files, or Git.
-3. Replace or remove the key any time via **Settings → OpenRouter**.
-
-### Permissions
-
-| Data | Inference key | Management key |
-| --- | --- | --- |
-| Key usage / limits (`/api/v1/key`) | ✓ | ✓ |
-| Account credits (`/api/v1/credits`) | ✗ (403) | ✓ |
-| Spend rows — today/week/month (`/api/v1/analytics/query`) | ✗ (403) | ✓ |
-| Spend history & top models (`/api/v1/activity`) | ✗ (403) | ✓ |
-
-A normal inference key works — the widget shows key-level usage and clearly
-states that account credits and spend history require a **management key**.
-Create one at <https://openrouter.ai/settings/keys> (⚠ a management key can
-spend credits and manage your account — treat it as a secret).
-
-## Architecture
-
-```
+```text
 Sources/
-├── OpenRouterWidgetCore/        # all logic + views (library, unit-testable)
-│   ├── API/                     # URLSession client, Codable models, typed errors
-│   ├── Credentials/             # CredentialStore protocol + Keychain/in-memory impls
-│   ├── Models/                  # UsageSnapshot, SpendCalculator (local-tz periods)
-│   ├── Services/                # UsageService, RefreshScheduler, SnapshotCache, LaunchAtLogin
-│   ├── App/AppState.swift       # @MainActor observable state
-│   ├── Views/                   # popover, balance, summary, chart, models, setup, settings
-│   └── Utilities/               # currency/date helpers, OSLog, model-name formatting
-└── OpenRouterWidget/            # thin executable: @main, MenuBarExtra + Settings scenes
-Tests/OpenRouterWidgetTests/      # decoding, API error mapping, spend math, credentials
+├── OpenRouterWidgetCore/            # all logic + views (library, fully unit-testable)
+│   ├── API/                         #   URLSession client · Codable models · typed errors
+│   ├── Credentials/                 #   CredentialStore protocol → Keychain / in-memory
+│   ├── Models/                      #   UsageSnapshot · SpendCalculator · SpendPeriods
+│   ├── Services/                    #   UsageService · RefreshScheduler · SnapshotCache
+│   ├── App/AppState.swift           #   @MainActor observable state, singleton boot
+│   ├── Views/                       #   popover · balance · chart · models · settings · setup
+│   └── Utilities/                   #   currency/date helpers · OSLog · model-name formatting
+└── OpenRouterWidget/                # thin executable: @main · MenuBarExtra · Settings scene
+Tests/OpenRouterWidgetTests/         # 45 tests · fixtures modelled on the official OpenAPI spec
 ```
 
-Design decisions (data sources, timezone semantics, permission UX) are recorded
-in [`docs/api.md`](docs/api.md) and [`docs/reference-review.md`](docs/reference-review.md).
+Design decisions — data sources, timezone semantics, permission UX — are recorded in [`docs/api.md`](docs/api.md); the review of prior art that shaped this architecture is in [`docs/reference-review.md`](docs/reference-review.md).
 
-- **Networking:** `URLSession` + async/await, injectable session/base URL,
-  no SwiftUI dependencies in the API layer. Status codes map to typed errors
-  (401/403/429/500…), OpenRouter's error message is surfaced in the UI.
-- **Refresh:** after launch, after connecting a key, manually (⌘R), and on a
-  configurable interval (1/5/15/30/60 min or manual-only). Duplicate
-  concurrent refreshes are guarded.
-- **Caching:** last successful snapshot is kept in memory and mirrored to a
-  small JSON file in Application Support. A failed refresh never evicts good
-  data — the footer shows “Updated 4 min ago · Could not refresh”.
-- **Logging:** OSLog (`API`/`Refresh`/`Credentials`/`App` categories). Keys and
-  response payloads are never logged.
+Highlights:
 
-## Testing
+- **Zero dependencies** — Swift, SwiftUI, Swift Charts, Security.framework, ServiceManagement. Nothing else.
+- **Testable by construction** — protocol-injected networking (`OpenRouterAPI`), credential store, and services; the test suite runs fully offline.
+- **Honest numbers** — spend rows come from the analytics API with exact local-period time ranges; every fallback (per-key usage, UTC periods) is labeled in the UI rather than silently mixed.
+- **OSLog only** — useful logs, never the key.
 
-```bash
-swift test
-```
+## 🔒 Security
 
-34 tests cover API decoding (fixture JSON modelled on the official OpenAPI
-examples), error mapping (401/403/429/500/malformed/offline/timeout), spend
-math (today/week/month/30-day windows, timezone boundaries, model grouping),
-the credential abstraction (in-memory + real-Keychain round-trip where
-available), and the refresh orchestration. No network access or real
-OpenRouter account is needed. *(Two Keychain tests auto-skip on hosts where
-the test runner cannot access the Keychain.)*
+- The API key lives **only** in the macOS Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`)
+- It is sent **only** to `https://openrouter.ai/api/v1` as a Bearer token
+- Never printed, logged, cached to disk, or committed; Settings shows only a masked form
+- Snapshot cache contains no credentials
 
-## Security notes
+## ⚠️ Known limitations
 
-- The API key lives only in the macOS Keychain, accessible after first unlock
-  on this device only.
-- The key is sent only to `https://openrouter.ai/api/v1` (Bearer auth).
-- The key is never printed, logged, or written to disk/Git; the settings UI
-  shows only a masked form (`•••••••• 890`).
+- The 30-day chart comes from `/api/v1/activity`, which OpenRouter limits to the last **30 completed UTC days** — today's bar is absent by design
+- Without a management key: balance shows the key's remaining limit, spend rows fall back to per-key UTC figures, no chart
+- Launch at Login requires the packaged `.app` (e.g. in `/Applications`)
+- For distribution beyond your own Mac, re-sign with a Developer ID and notarize
 
-## Known limitations
+## 🙏 References
 
-- **Spend rows (today/week/month)** come from the analytics API with a
-  management key — exact, account-wide, local calendar periods. Without a
-  management key they fall back to the configured key's own UTC-period usage.
-- The **30-day chart and top models** come from `/api/v1/activity`, which
-  covers only the last 30 *completed* UTC days — today's bar is not included.
-- Without a management key, the balance shows the **key's remaining spending
-  limit** (not account credits).
-- No database, sync, or history beyond what OpenRouter's API provides.
-- Launch at Login uses `SMAppService` and requires the packaged `.app`.
+Architecture informed by [godsall-dev/openrouter-usage-menu-macos](https://github.com/godsall-dev/openrouter-usage-menu-macos) and [kittizz/OpenRouterCreditMenuBar](https://github.com/kittizz/OpenRouterCreditMenuBar) — analysis in [`docs/reference-review.md`](docs/reference-review.md). All API usage verified against the [official OpenRouter OpenAPI specification](https://openrouter.ai/openapi.json).
 
-## Packaging
+## 📄 License
 
-`scripts/package-app.sh` builds a release binary, assembles an `.app` bundle
-(with `LSUIElement` so it stays menu-bar-only) and ad-hoc codesigns it. For
-distribution, re-sign with a Developer ID and notarize; no other dependencies
-are involved.
+[MIT](LICENSE) © Gaurav Singh
