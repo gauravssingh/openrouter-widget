@@ -74,7 +74,7 @@ First launch: click the menu-bar item, paste an OpenRouter API key, done.
 
 ## 🔑 API key & permissions
 
-Create a key at <https://openrouter.ai/settings/keys>. A **management key** unlocks everything:
+Create an inference key at <https://openrouter.ai/settings/keys>, or a **management key** (which unlocks everything below) at <https://openrouter.ai/settings/management-keys>:
 
 | Data | Source | Inference key | Management key |
 | :--- | :--- | :---: | :---: |
