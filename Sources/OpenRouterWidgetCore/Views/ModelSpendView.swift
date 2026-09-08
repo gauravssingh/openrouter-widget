@@ -12,9 +12,10 @@ public struct ModelSpendView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: LayoutTokens.rowSpacing) {
             Text("Top models")
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
 
             if models.isEmpty {
                 Text("No usage yet")
@@ -36,10 +37,9 @@ public struct ModelSpendView: View {
                 .truncationMode(.middle)
                 .foregroundStyle(isOther ? Color.secondary : Color.primary)
                 .help(isOther ? "All other models" : model.model)
-                .accessibilityLabel(
-                    "\(model.displayName) spend \(CurrencyFormatter.string(from: model.amount))"
-                )
+
             Spacer()
+
             Text(CurrencyFormatter.string(from: model.amount))
                 .monospacedDigit()
                 .fontWeight(.medium)
@@ -48,6 +48,12 @@ public struct ModelSpendView: View {
                 .layoutPriority(1)
         }
         .font(.callout)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel(for: model, isOther: isOther))
+    }
+
+    private func accessibilityLabel(for model: ModelSpend, isOther: Bool) -> String {
+        let label = isOther ? "All other models" : model.displayName
+        return "\(label) spend: \(CurrencyFormatter.string(from: model.amount))"
     }
 }

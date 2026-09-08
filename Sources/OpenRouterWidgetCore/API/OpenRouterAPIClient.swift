@@ -116,7 +116,7 @@ public final class OpenRouterAPIClient: OpenRouterAPI, @unchecked Sendable {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else { throw OpenRouterAPIError.missingAPIKey }
 
-        var components = URLComponents(
+        let components = URLComponents(
             url: baseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
         )

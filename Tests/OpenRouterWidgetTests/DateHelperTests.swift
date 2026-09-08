@@ -35,4 +35,18 @@ final class DateHelperTests: XCTestCase {
         XCTAssertNotNil(DateHelpers.parseISO8601("2027-12-31T23:59:59Z"))
         XCTAssertNil(DateHelpers.parseISO8601("not-a-date"))
     }
+
+    func testChartDayLabel() {
+        let date = DateHelpers.parseUTCDay("2026-09-04")!
+        let label = DateHelpers.chartDayLabel(for: date)
+        XCTAssertFalse(label.isEmpty)
+        XCTAssertTrue(label.contains("4"))
+    }
+
+    func testMediumDayLabel() {
+        let date = DateHelpers.parseUTCDay("2026-09-04")!
+        let label = DateHelpers.mediumDayLabel(for: date)
+        XCTAssertFalse(label.isEmpty)
+        XCTAssertTrue(label.contains("2026"))
+    }
 }

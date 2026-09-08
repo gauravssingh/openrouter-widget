@@ -26,11 +26,11 @@ public struct UsageSummaryView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: LayoutTokens.rowSpacing) {
             ForEach(rows) { row in
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.label)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Text(CurrencyFormatter.string(from: row.value))
                         .monospacedDigit()
@@ -39,7 +39,7 @@ public struct UsageSummaryView: View {
                 }
                 .font(.callout)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(row.label) spend \(CurrencyFormatter.string(from: row.value))")
+                .accessibilityLabel(accessibilityLabel(for: row))
             }
 
             if let footnote {
@@ -47,7 +47,13 @@ public struct UsageSummaryView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
             }
         }
+    }
+
+    private func accessibilityLabel(for row: Row) -> String {
+        let title = row.label.lowercased().contains("spend") ? row.label : "\(row.label)'s spend"
+        return "\(title): \(CurrencyFormatter.string(from: row.value))"
     }
 }

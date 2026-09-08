@@ -53,4 +53,31 @@ public enum DateHelpers {
         let days = hours / 24
         return days == 1 ? "1 day ago" : "\(days) days ago"
     }
+
+    private static let chartDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale.current
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+
+    private static let mediumDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale.current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
+    /// Compact day label for chart hover (e.g. "Sep 4").
+    public static func chartDayLabel(for date: Date) -> String {
+        chartDayFormatter.string(from: date)
+    }
+
+    /// Medium day label for VoiceOver and accessibility (e.g. "Sep 4, 2026").
+    public static func mediumDayLabel(for date: Date) -> String {
+        mediumDayFormatter.string(from: date)
+    }
 }

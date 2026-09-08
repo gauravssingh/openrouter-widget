@@ -23,13 +23,12 @@ public struct BalanceView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(CurrencyFormatter.string(from: amount))
-                .font(.system(.largeTitle, design: .rounded, weight: .semibold))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .accessibilityLabel("\(label): \(CurrencyFormatter.string(from: amount))")
+                .minimumScaleFactor(0.7)
 
             HStack(alignment: .firstTextBaseline, spacing: 0) {
                 Text(label)
@@ -43,16 +42,25 @@ public struct BalanceView: View {
             }
 
             if managementRequired {
-                Label("Account credits require a management key", systemImage: "lock")
+                Label("Account credits require a management key", systemImage: "lock.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.top, 3)
-                    .accessibilityLabel(
-                        "Account credits require a management key. The amount shown is the key's remaining spending limit."
-                    )
+                    .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        var text = "\(label): \(CurrencyFormatter.string(from: amount))"
+        if let detail {
+            text += ", \(detail)"
+        }
+        if managementRequired {
+            text += ". Account credits require a management key. The amount shown is the key's remaining spending limit."
+        }
+        return text
     }
 }

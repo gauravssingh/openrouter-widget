@@ -14,12 +14,12 @@ public final class AppState: ObservableObject {
     // MARK: - Published state
 
     /// True once a key exists in the credential store.
-    @Published public private(set) var hasStoredKey = false
+    @Published public internal(set) var hasStoredKey = false
     /// Latest successful snapshot (may predate a failed refresh).
-    @Published public private(set) var snapshot: UsageSnapshot?
+    @Published public internal(set) var snapshot: UsageSnapshot?
     /// Non-nil when the most recent refresh attempt failed.
-    @Published public private(set) var lastRefreshError: String?
-    @Published public private(set) var isRefreshing = false
+    @Published public internal(set) var lastRefreshError: String?
+    @Published public internal(set) var isRefreshing = false
 
     // Setup/connect flow.
     @Published public var isConnecting = false
@@ -266,3 +266,22 @@ private extension UsageWarning {
         }
     }
 }
+
+#if DEBUG
+extension AppState {
+    public static func preview(
+        snapshot: UsageSnapshot?,
+        hasStoredKey: Bool = true,
+        lastRefreshError: String? = nil,
+        isRefreshing: Bool = false
+    ) -> AppState {
+        let store = InMemoryCredentialStore(key: hasStoredKey ? "sk-or-v1-preview" : nil)
+        let state = AppState(credentials: store)
+        state.hasStoredKey = hasStoredKey
+        state.snapshot = snapshot
+        state.lastRefreshError = lastRefreshError
+        state.isRefreshing = isRefreshing
+        return state
+    }
+}
+#endif

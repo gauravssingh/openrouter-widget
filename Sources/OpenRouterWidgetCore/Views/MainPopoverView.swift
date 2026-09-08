@@ -7,6 +7,9 @@ public struct MainPopoverView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openSettings) private var openSettings
 
+    @State private var settingsRowHovering = false
+    @State private var quitRowHovering = false
+
     public init() {}
 
     public var body: some View {
@@ -17,7 +20,7 @@ public struct MainPopoverView: View {
                 content
             }
         }
-        .frame(width: 340)
+        .frame(width: LayoutTokens.popoverWidth)
         .task {
             appState.start()
         }
@@ -37,7 +40,7 @@ public struct MainPopoverView: View {
     // MARK: - Populated
 
     private func populatedContent(_ snapshot: UsageSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: LayoutTokens.sectionSpacing) {
             BalanceView(
                 amount: appState.balance?.amount ?? 0,
                 label: appState.balance?.label ?? "Available credits",
@@ -60,13 +63,9 @@ public struct MainPopoverView: View {
                 activityUnavailableNote
             }
 
-            Spacer(minLength: 4)
-
-            Divider()
-
             footer
         }
-        .padding(16)
+        .padding(LayoutTokens.popoverPadding)
     }
 
     /// Secondary context under the hero number, e.g.
@@ -126,13 +125,14 @@ public struct MainPopoverView: View {
     // MARK: - Loading / error
 
     private var loadingState: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             ProgressView()
+                .controlSize(.regular)
             Text("Loading your OpenRouter usage…")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .padding(24)
+        .padding(32)
         .frame(maxWidth: .infinity)
     }
 
@@ -149,7 +149,7 @@ public struct MainPopoverView: View {
                     Task { await appState.refresh() }
                 }
                 .buttonStyle(.borderedProminent)
-                .keyboardShortcut("r")
+                .keyboardShortcut("r", modifiers: .command)
                 if appState.isRefreshing {
                     ProgressView().controlSize(.small)
                 }
@@ -175,68 +175,47 @@ public struct MainPopoverView: View {
             settingsRow
 
             Divider()
+                .padding(.top, 2)
 
-            Button("Quit OpenRouter Widget") {
-                NSApp.terminate(nil)
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Quit OpenRouter Widget")
+            quitRow
         }
     }
 
     private var statusRow: some View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .center) {
-                    Text(statusText)
+            HStack(alignment: .center) {
+                if appState.isRefreshing {
+                    Text("Refreshing…")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .help(statusTooltip)
-                    Spacer()
-                    refreshButton
-                }
-
-                if let error = appState.lastRefreshError, appState.snapshot != nil {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.secondary)
+                } else if let error = appState.lastRefreshError, appState.snapshot != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                        Text("Unable to refresh")
+                            .foregroundStyle(.orange)
+                        Text("\(appState.updatedAgoText ?? "Updated") · Unable to refresh")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Button("Retry") {
-                            Task { await appState.refresh() }
-                        }
-                        .buttonStyle(.borderless)
-                        .font(.caption.weight(.medium))
-                        .accessibilityLabel("Retry refresh")
                     }
                     .help(error)
+                    .accessibilityLabel("\(appState.updatedAgoText ?? "Updated"), unable to refresh: \(error)")
+                } else if let updated = appState.updatedAgoText {
+                    Text(updated)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .help(updated)
+                } else {
+                    Text("Never updated")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                RefreshButton(isRefreshing: appState.isRefreshing) {
+                    Task { await appState.refresh() }
                 }
             }
-        }
-    }
-
-    private var statusText: String {
-        if appState.isRefreshing { return "Refreshing…" }
-        if let updated = appState.updatedAgoText { return updated }
-        return "Never updated"
-    }
-
-    private var statusTooltip: String {
-        if let error = appState.lastRefreshError, appState.snapshot != nil {
-            return error
-        }
-        return statusText
-    }
-
-    private var refreshButton: some View {
-        RefreshButton(isRefreshing: appState.isRefreshing) {
-            Task { await appState.refresh() }
         }
     }
 
@@ -246,6 +225,7 @@ public struct MainPopoverView: View {
         } label: {
             HStack {
                 Text("Settings")
+                    .font(.callout)
                     .foregroundStyle(.primary)
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -254,20 +234,45 @@ public struct MainPopoverView: View {
                     .accessibilityHidden(true)
             }
             .padding(.vertical, 5)
+            .padding(.horizontal, 6)
             .contentShape(Rectangle())
             .background {
                 if settingsRowHovering {
-                    RoundedRectangle(cornerRadius: 5)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color.primary.opacity(0.06))
-                        // Extend the hover highlight past the text margins
-                        // without moving the text itself.
-                        .padding(.horizontal, -8)
                 }
             }
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, -6)
         .onHover { settingsRowHovering = $0 }
         .accessibilityLabel("Open settings")
+    }
+
+    private var quitRow: some View {
+        Button {
+            NSApp.terminate(nil)
+        } label: {
+            HStack {
+                Text("Quit OpenRouter Widget")
+                    .font(.caption)
+                    .foregroundStyle(quitRowHovering ? .primary : .secondary)
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 6)
+            .contentShape(Rectangle())
+            .background {
+                if quitRowHovering {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.primary.opacity(0.06))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, -6)
+        .onHover { quitRowHovering = $0 }
+        .accessibilityLabel("Quit OpenRouter Widget")
     }
 
     /// Opens the Settings window reliably. Accessory (menu-bar-only) apps
@@ -283,8 +288,6 @@ public struct MainPopoverView: View {
         }
     }
 
-    @State private var settingsRowHovering = false
-
     private var snapshotWarning: UsageWarning? {
         guard let snapshot = appState.snapshot else { return nil }
         // Surface only actionable data warnings, not management-required
@@ -298,8 +301,8 @@ public struct MainPopoverView: View {
     }
 }
 
-/// Subtle circular refresh control with a clear hover state and a spinner
-/// while a refresh is in flight. Its footprint never changes, so the
+/// Subtle circular refresh control with a clear hover state and a smooth
+/// rotation while a refresh is in flight. Its footprint never changes, so the
 /// popover layout stays stable.
 private struct RefreshButton: View {
     let isRefreshing: Bool
@@ -309,26 +312,27 @@ private struct RefreshButton: View {
 
     var body: some View {
         Button(action: action) {
-            Group {
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.mini)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.callout.weight(.medium))
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(hovering ? .primary : .secondary)
+                .rotationEffect(isRefreshing ? .degrees(360) : .zero)
+                .animation(
+                    isRefreshing
+                        ? .linear(duration: 0.85).repeatForever(autoreverses: false)
+                        : .default,
+                    value: isRefreshing
+                )
+                .frame(width: 24, height: 24)
+                .background {
+                    if hovering {
+                        Circle().fill(Color.primary.opacity(0.08))
+                    }
                 }
-            }
-            .frame(width: 24, height: 24)
-            .background {
-                if hovering {
-                    Circle().fill(Color.primary.opacity(0.08))
-                }
-            }
-            .contentShape(Rectangle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .disabled(isRefreshing)
-        .keyboardShortcut("r")
+        .keyboardShortcut("r", modifiers: .command)
         .accessibilityLabel("Refresh usage")
         .help("Refresh usage (⌘R)")
         .onHover { hovering = $0 }
